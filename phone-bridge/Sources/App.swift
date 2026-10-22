@@ -128,6 +128,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 appLog("snapshot snap-sidebar.png")
             }
         case "connect": m.engine.connect()
+        case "phones":
+            m.engine.refreshPhones()
+            appLog("phones: " + m.engine.phones.map { "\($0.name) \($0.id) connected=\($0.connected)" }.joined(separator: "; "))
+        case "use-phone":
+            // "use-phone Redmi" picks the first paired phone whose name or address contains the text
+            m.engine.refreshPhones()
+            if let p = m.engine.phones.first(where: { $0.name.localizedCaseInsensitiveContains(arg) || $0.id.localizedCaseInsensitiveContains(arg) }) {
+                m.engine.switchPhone(to: p.id)
+            } else { appLog("no paired phone matches \(arg)") }
         case "panel-keys": NotificationCenter.default.post(name: .showInCallKeys, object: nil)
         case "digit": arg.forEach { m.engine.sendDigit(String($0)) }
         case "indicator":
@@ -169,6 +178,9 @@ struct PhoneBridgeApp: App {
             CommandGroup(after: .newItem) {
                 Button("Reconnect Phone") { AppModel.shared.engine.connect() }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
+            }
+            CommandMenu("Phone") {
+                PhonePickerItems().environmentObject(AppModel.shared.engine)
             }
             RingtoneCommands(ringer: AppModel.shared.ringer)
         }

@@ -88,6 +88,14 @@ final class HFPChannelFinder: NSObject {
         timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in self?.next() }
     }
 
+    /// Stops the search without calling the completion, for a switch to another phone.
+    func cancel() {
+        completion = nil
+        timer?.invalidate()
+        channel?.close()
+        channel = nil
+    }
+
     private func finish(_ found: BluetoothRFCOMMChannelID?) {
         timer?.invalidate()
         channel?.close()
@@ -121,6 +129,13 @@ enum LinkState: Equatable {
     case searching, connecting, connected, failed(String)
 }
 
+/// A phone paired with the Mac that PhoneBridge can connect to.
+struct PairedPhone: Identifiable, Hashable {
+    let id: String  // Bluetooth address
+    let name: String
+    let connected: Bool
+}
+
 struct CallRecord: Codable, Identifiable, Equatable {
     enum Direction: String, Codable { case incoming, outgoing, missed }
     var id = UUID()
@@ -133,6 +148,8 @@ struct CallRecord: Codable, Identifiable, Equatable {
 final class CallEngine: NSObject, ObservableObject {
     @Published var link: LinkState = .searching
     @Published var phoneName = "Phone"
+    @Published var phoneAddress = ""
+    @Published var phones: [PairedPhone] = []
     @Published var signal = 0
     @Published var battery = 0
     @Published var hasService = false
@@ -172,6 +189,7 @@ final class CallEngine: NSObject, ObservableObject {
         connect()
         // The phone can drop the control link without a disconnect callback; the app then shows Connected but commands go nowhere.
         watchdog = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            self?.refreshPhones()
             guard let self, !self.demoMode, self.link == .connected, self.phase == .idle, !self.handsFreeUp else { return }
             self.linkLost("hands-free link dropped without notice")
         }
@@ -184,6 +202,37 @@ final class CallEngine: NSObject, ObservableObject {
         dialedOut = false
         updatePhase()
         link = .connecting
+        connect()
+    }
+
+    private static func isPhone(_ d: IOBluetoothDevice) -> Bool {
+        d.deviceClassMajor == BluetoothDeviceClassMajor(kBluetoothDeviceClassMajorPhone) || d.handsFreeAudioGatewayServiceRecord() != nil
+    }
+
+    /// Reloads the paired phones for the phone picker.
+    func refreshPhones() {
+        let paired = (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]) ?? []
+        var seen = Set<String>()  // macOS can list the same phone twice
+        phones = paired.filter(Self.isPhone)
+            .map { PairedPhone(id: $0.addressString ?? "", name: $0.name ?? "Phone", connected: $0.isConnected()) }
+            .filter { seen.insert($0.id).inserted }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    var canSwitchPhone: Bool { phase == .idle }
+
+    /// Makes PhoneBridge use another paired phone, and remembers the choice.
+    func switchPhone(to address: String) {
+        guard canSwitchPhone, address != phoneAddress || link != .connected else { return }
+        log("switch phone to \(address)")
+        UserDefaults.standard.set(address, forKey: "phoneAddress")
+        finder?.cancel()
+        finder = nil
+        hf?.disconnect()
+        hf = nil
+        signal = 0
+        battery = 0
+        hasService = false
         connect()
     }
 
@@ -222,6 +271,8 @@ final class CallEngine: NSObject, ObservableObject {
         }
         device = dev
         phoneName = dev.name ?? "Phone"
+        phoneAddress = dev.addressString ?? ""
+        refreshPhones()
         let sdp = sdpChannel(dev)
         if let cached = UserDefaults.standard.object(forKey: channelKey(dev)) as? Int {
             setRemap(from: sdp, to: BluetoothRFCOMMChannelID(cached))
@@ -262,7 +313,10 @@ final class CallEngine: NSObject, ObservableObject {
             UserDefaults.standard.set(Int(found), forKey: self.channelKey(dev))
             self.setRemap(from: sdp, to: found)
             // bluetoothd applies the finder's close a moment later; reopening the same channel at once loses the new link.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { self.openHandsFree(dev) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                guard self.device === dev else { return }  // the user switched phones meanwhile
+                self.openHandsFree(dev)
+            }
         }
     }
 
@@ -385,7 +439,7 @@ final class CallEngine: NSObject, ObservableObject {
 
     @objc(handsFree:connected:) func hfConnected(_ d: IOBluetoothHandsFree, connected s: NSNumber) {
         log("connected status=\(s)")
-        guard s.intValue == 0 else { return }
+        guard d === hf, s.intValue == 0 else { return }
         connectTimer?.invalidate()
         link = .connected
         if let a = device?.addressString { UserDefaults.standard.set(a, forKey: "phoneAddress") }
@@ -393,7 +447,7 @@ final class CallEngine: NSObject, ObservableObject {
 
     @objc(handsFree:disconnected:) func hfDisconnected(_ d: IOBluetoothHandsFree, disconnected s: NSNumber) {
         log("disconnected status=\(s)")
-        guard link == .connected else { return }
+        guard d === hf, link == .connected else { return }
         callSetup = 0
         callActive = false
         updatePhase()

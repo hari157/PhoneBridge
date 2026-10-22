@@ -14,16 +14,17 @@ The call voice stays on the phone. macOS does not let third-party apps carry Blu
 - The in-call keypad sends tones to automated phone menus and shows the digits that you pressed.
 - The call list records incoming, outgoing, and missed calls, with contact names from the Contacts app.
 - If the phone drops the Bluetooth link, the app reconnects by itself.
+- If more than one phone is paired with the Mac, you choose the phone from the sidebar or the Phone menu. The app remembers your choice.
 - `tel:` links from Safari, Contacts, and Calendar open the PhoneBridge keypad.
 
 ## Requirements
 
 - A Mac with Bluetooth and macOS 14 or later. The app was tested on macOS 27 on Apple silicon.
-- An Android phone paired with the Mac. The app was tested with a OnePlus 7T on Android 12.
+- An Android phone paired with the Mac. The app was tested with a OnePlus 7T on Android 12 and a Redmi Note 10 Pro.
 
 ## Install
 
-1. Download `PhoneBridge-1.0.0.dmg` from the [v1.0.0 release](../../releases/tag/v1.0.0) and open it. The release also has the same app as `PhoneBridge-1.0.0.zip`.
+1. Download `PhoneBridge-1.1.0.dmg` from the [latest release](../../releases/latest) and open it. The release also has the same app as `PhoneBridge-1.1.0.zip`.
 2. Drag PhoneBridge to the Applications folder.
 3. The app is signed ad hoc and is not notarized by Apple. On first launch, right-click the app and choose Open. If macOS still blocks it, run this command once:
 

@@ -129,6 +129,34 @@ struct RootView: View {
 
 // MARK: - Phone status
 
+/// The paired phones, for the sidebar menu and the Phone menu in the menu bar.
+struct PhonePickerItems: View {
+    @EnvironmentObject var engine: CallEngine
+
+    var body: some View {
+        if engine.phones.isEmpty {
+            Text("No paired phones. Pair one in System Settings > Bluetooth.")
+        }
+        ForEach(engine.phones) { p in
+            Button {
+                engine.switchPhone(to: p.id)
+            } label: {
+                if p.id == engine.phoneAddress {
+                    Label(p.name, systemImage: "checkmark")
+                } else {
+                    Text(p.connected ? "\(p.name)  ●" : p.name)
+                }
+            }
+            .disabled(!engine.canSwitchPhone)
+        }
+        Divider()
+        Button("Refresh List") { engine.refreshPhones() }
+        Button("Bluetooth Settings…") {
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.BluetoothSettings")!)
+        }
+    }
+}
+
 struct PhoneStatusCard: View {
     @EnvironmentObject var engine: CallEngine
 
@@ -167,7 +195,14 @@ struct PhoneStatusCard: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(engine.phoneName).font(.callout.weight(.semibold)).lineLimit(1)
+                    Menu {
+                        PhonePickerItems()
+                    } label: {
+                        Text(engine.phoneName).font(.callout.weight(.semibold)).lineLimit(1)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Choose which phone PhoneBridge uses")
                     HStack(spacing: 5) {
                         Circle().fill(statusColor).frame(width: 7, height: 7)
                         Text(statusText).font(.caption).foregroundStyle(.secondary).lineLimit(1)
