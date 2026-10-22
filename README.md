@@ -23,8 +23,8 @@ The call voice stays on the phone. macOS does not let third-party apps carry Blu
 
 ## Install
 
-1. Download `PhoneBridge-1.0.0.zip` from the [v1.0.0 release](../../releases/tag/v1.0.0) and unzip it.
-2. Move `PhoneBridge.app` to the Applications folder.
+1. Download `PhoneBridge-1.0.0.dmg` from the [v1.0.0 release](../../releases/tag/v1.0.0) and open it. The release also has the same app as `PhoneBridge-1.0.0.zip`.
+2. Drag PhoneBridge to the Applications folder.
 3. The app is signed ad hoc and is not notarized by Apple. On first launch, right-click the app and choose Open. If macOS still blocks it, run this command once:
 
    ```bash
@@ -45,6 +45,8 @@ cd phone-bridge && ./build.sh
 ```
 
 The app is built at `phone-bridge/build/PhoneBridge.app`.
+
+To make the installer disk image, run `phone-bridge/dmg/make-dmg.sh` after the build. The image is built at `phone-bridge/build/PhoneBridge-<version>.dmg`.
 
 The icon is prebuilt in `phone-bridge/icon/compiled`. If you change the icon, run `phone-bridge/icon/make-icon.sh`. That script needs the full Xcode, for the `actool` tool.
 
