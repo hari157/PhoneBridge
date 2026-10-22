@@ -71,6 +71,10 @@ The icon is prebuilt in `phone-bridge/icon/compiled`. If you change the icon, ru
 | `android-calls-on-mac-report.md` | Research report: architecture, test results, and limits |
 | `call-audio-setup.md` | Setup guide for call audio with a second Bluetooth radio |
 
+## License
+
+PhoneBridge is released under the [MIT License](LICENSE).
+
 ## Credits
 
 The handset in the icon is the "call" glyph from Google's Material Design icons, under the Apache License 2.0.
